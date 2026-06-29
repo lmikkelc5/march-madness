@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 from io import StringIO
 
-URL = "https://www.sports-reference.com/cbb/schools/michigan/men/2026.html"
+URL = "https://www.sports-reference.com/cbb/seasons/men/2026-school-stats.html"
 
 headers = {
     "User-Agent": "Mozilla/5.0"
@@ -10,17 +10,11 @@ headers = {
 
 response = requests.get(URL, headers=headers)
 
-print(response.status_code)
+stats_df = pd.read_html(StringIO(response.text))[0]
 
-tables = pd.read_html(StringIO(response.text))
+stats_df.columns = [
+    "_".join(str(c) for c in col if "Unnamed" not in str(c)).strip("_")
+    for col in stats_df.columns
+]
 
-print(f"Found {len(tables)} tables")
-
-for i, table in enumerate(tables):
-    print("=" * 60)
-    print(f"TABLE {i}")
-    print("=" * 60)
-
-    print(table.head())
-
-    print()
+print(stats_df.head())

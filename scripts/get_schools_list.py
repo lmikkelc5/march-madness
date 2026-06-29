@@ -4,9 +4,7 @@ import requests
 from pathlib import Path
 import sqlite3
 
-def get_schools_list():
-    URL = "https://www.sports-reference.com/cbb/seasons/men/2026-school-stats.html"
-
+def get_schools_list(URL):
     #get html content
     response = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"})
 
@@ -29,26 +27,35 @@ def get_schools_list():
 
     return df.head()
 
-def save_to_db(df):
-    #open database and add the data to the team table. 
+def save_to_db(df, table_name, conflict_column):
     ROOT = Path(__file__).resolve().parent.parent
-
     DB_FILE = ROOT / "database" / "march_madness.db"
 
-    with sqlite3.connect(DB_FILE) as connection:
-        cursor = connection.cursor()
+    columns = list(df.columns)
+    column_string = ", ".join(columns)
+    placeholders = ", ".join(["?"] * len(columns))
 
-        cursor.executemany(
-            """
-            INSERT OR IGNORE INTO teams (school, slug, url)
-            VALUES (?, ?, ?)
-            """,
-            df.values.tolist()
-        )
+    # Update every column except the conflict column
+    update_string = ", ".join(
+        f"{col}=excluded.{col}"
+        for col in columns
+        if col != conflict_column
+    )
+
+    query = f"""
+    INSERT INTO {table_name} ({column_string})
+    VALUES ({placeholders})
+    ON CONFLICT({conflict_column})
+    DO UPDATE SET
+        {update_string};
+    """
+
+    with sqlite3.connect(DB_FILE) as connection:
+        connection.executemany(query, df.values.tolist())
+        connection.commit()
 
 def main():
-    df = get_schools_list()
-    save_to_db(df)
+    pass
 
 if __name__ == "__main__":
     main()
