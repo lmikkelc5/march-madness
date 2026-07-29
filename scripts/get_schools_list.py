@@ -27,33 +27,38 @@ def get_schools_list(URL):
 
     return df.head()
 
-def save_to_db(df, table_name, conflict_column):
+def save_to_db(df, table_name, conflict_columns):
+    if isinstance(conflict_columns, str):
+        conflict_columns = [conflict_columns]
+
     ROOT = Path(__file__).resolve().parent.parent
     DB_FILE = ROOT / "database" / "march_madness.db"
 
     columns = list(df.columns)
-    column_string = ", ".join(columns)
-    placeholders = ", ".join(["?"] * len(columns))
 
-    # Update every column except the conflict column
+    quoted_columns = ", ".join(f'"{col}"' for col in columns)
+    placeholders = ", ".join(["?"] * len(columns))
+    conflict_string = ", ".join(f'"{col}"' for col in conflict_columns)
+
     update_string = ", ".join(
-        f"{col}=excluded.{col}"
+        f'"{col}" = excluded."{col}"'
         for col in columns
-        if col != conflict_column
+        if col not in conflict_columns
     )
 
     query = f"""
-    INSERT INTO {table_name} ({column_string})
+    INSERT INTO "{table_name}" ({quoted_columns})
     VALUES ({placeholders})
-    ON CONFLICT({conflict_column})
+    ON CONFLICT({conflict_string})
     DO UPDATE SET
         {update_string};
     """
 
     with sqlite3.connect(DB_FILE) as connection:
+        print(query)
         connection.executemany(query, df.values.tolist())
         connection.commit()
-
+        
 def main():
     pass
 

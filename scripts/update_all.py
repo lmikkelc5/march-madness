@@ -1,5 +1,6 @@
 from scripts.get_schools_list import get_schools_list, save_to_db
 from scripts.create_database import create_database, delete_database
+from scripts.scrape_team_stats import scrape_team_stats
 from config import DB_FILE
 
 def main():
@@ -13,7 +14,8 @@ def main():
     save_to_db(schools, "teams", "slug")
 
     # Seasons
-    # seasons = get_team_seasons(...)
+    seasons = scrape_team_stats(url)
+    print(seasons.columns.tolist())
     # save_to_db(seasons, "team_seasons", ("team_id", "season"))
 
     # Games

@@ -25,35 +25,53 @@ def create_database(DB_FILE):
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS team_seasons (
+    CREATE TABLE IF NOT EXISTS team_seasons (
 
-        team_season_id INTEGER PRIMARY KEY,
+    team_season_id INTEGER PRIMARY KEY,
 
-        team_id INTEGER NOT NULL,
+    team_id INTEGER NOT NULL,
+    season INTEGER NOT NULL,
 
-        season INTEGER NOT NULL,
+    games INTEGER,
+    wins INTEGER,
+    losses INTEGER,
+    win_pct REAL,
 
-        conference TEXT,
+    srs REAL,
+    sos REAL,
 
-        overall_wins INTEGER,
-        overall_losses INTEGER,
+    points_per_game REAL,
+    opponent_points_per_game REAL,
 
-        conference_wins INTEGER,
-        conference_losses INTEGER,
+    minutes INTEGER,
 
-        srs REAL,
-        sos REAL,
+    fg INTEGER,
+    fga INTEGER,
+    fg_pct REAL,
 
-        points_per_game REAL,
-        opponent_points_per_game REAL,
+    three_pt INTEGER,
+    three_pt_attempts INTEGER,
+    three_pt_pct REAL,
 
-        FOREIGN KEY(team_id)
-            REFERENCES teams(team_id),
+    ft INTEGER,
+    fta INTEGER,
+    ft_pct REAL,
 
-        UNIQUE(team_id, season)
+    offensive_rebounds INTEGER,
+    total_rebounds INTEGER,
 
-    )
-    """);
+    assists INTEGER,
+    steals INTEGER,
+    blocks INTEGER,
+    turnovers INTEGER,
+    personal_fouls INTEGER,
 
+    FOREIGN KEY(team_id)
+        REFERENCES teams(team_id),
+
+    UNIQUE(team_id, season)
+
+)
+""")
     connection.commit()
     connection.close()
