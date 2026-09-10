@@ -1,12 +1,12 @@
 from bs4 import BeautifulSoup
 import pandas as pd
-import requests
-from pathlib import Path
 import sqlite3
 
+from scripts.http_utils import polite_get
+from config import DB_FILE
+
 def get_schools_list(URL):
-    #get html content
-    response = requests.get(URL, headers={"User-Agent": "Mozilla/5.0"})
+    response = polite_get(URL)
 
     soup = BeautifulSoup(response.text, "lxml")
 
@@ -25,14 +25,11 @@ def get_schools_list(URL):
 
     df = pd.DataFrame(teams)
 
-    return df.head()
+    return df
 
-def save_to_db(df, table_name, conflict_columns):
+def save_to_db(df, table_name, conflict_columns, db_file=DB_FILE):
     if isinstance(conflict_columns, str):
         conflict_columns = [conflict_columns]
-
-    ROOT = Path(__file__).resolve().parent.parent
-    DB_FILE = ROOT / "database" / "march_madness.db"
 
     columns = list(df.columns)
 
@@ -54,8 +51,7 @@ def save_to_db(df, table_name, conflict_columns):
         {update_string};
     """
 
-    with sqlite3.connect(DB_FILE) as connection:
-        print(query)
+    with sqlite3.connect(db_file) as connection:
         connection.executemany(query, df.values.tolist())
         connection.commit()
         
