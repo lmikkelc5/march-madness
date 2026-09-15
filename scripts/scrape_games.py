@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pandas as pd
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 
 from scripts.http_utils import polite_get
 from scripts.get_schools_list import save_to_db
@@ -111,15 +112,12 @@ def build_games_for_season(season, db_file=DB_FILE, team_slugs=None):
 
     games_by_slug = {}
 
-    for i, team_slug in enumerate(team_slugs, start=1):
-        if i == 1 or i % 25 == 0 or i == len(team_slugs):
-            print(f"  [{season}] schedule {i}/{len(team_slugs)}: {team_slug}", flush=True)
-
+    for team_slug in tqdm(team_slugs, desc=f"[{season}] schedules", unit="team"):
         team_id = team_id_map[team_slug]
         for game in get_team_schedule(team_slug, season):
             opponent_id = team_id_map.get(game["opponent_slug"])
             if opponent_id is None:
-                print(f"Skipping game vs unknown team slug '{game['opponent_slug']}' ({team_slug} {season})")
+                tqdm.write(f"Skipping game vs unknown team slug '{game['opponent_slug']}' ({team_slug} {season})")
                 continue
 
             is_neutral = game["location"] == "N"
@@ -206,23 +204,24 @@ def build_team_game_stats_for_season(season, db_file=DB_FILE):
     slug_to_team_id = team_id_map
     team_id_to_slug = {v: k for k, v in team_id_map.items()}
 
-    total = len(games)
-    for i, (game_id, boxscore_slug, home_team_id, away_team_id) in enumerate(games, start=1):
-        if i == 1 or i % 50 == 0 or i == total:
-            print(f"  [{season}] box score {i}/{total}: {boxscore_slug}", flush=True)
-
+    progress = tqdm(games, desc=f"[{season}] box scores", unit="game")
+    for game_id, boxscore_slug, home_team_id, away_team_id in progress:
         checkpoint_key = f"box_score:{boxscore_slug}"
         if is_done("results", checkpoint_key):
             continue
 
-        stats_by_slug = get_game_box_score(boxscore_slug)
+        try:
+            stats_by_slug = get_game_box_score(boxscore_slug)
+        except Exception as exc:
+            tqdm.write(f"Skipping game {boxscore_slug} after repeated failures ({exc})")
+            continue
 
         rows = []
         for team_id, opponent_id in ((home_team_id, away_team_id), (away_team_id, home_team_id)):
             team_slug = team_id_to_slug.get(team_id)
             stats = stats_by_slug.get(team_slug)
             if stats is None:
-                print(f"Missing box score stats for team '{team_slug}' in game {boxscore_slug}")
+                tqdm.write(f"Missing box score stats for team '{team_slug}' in game {boxscore_slug}")
                 continue
             rows.append({"game_id": game_id, "team_id": team_id, "opponent_id": opponent_id, **stats})
 

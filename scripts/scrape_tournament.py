@@ -22,6 +22,12 @@ def get_tournament_seeds(season):
 
     seeds = []
     for region_div in soup.select("#brackets > div[id]"):
+        # The "national" div holds the Final Four/championship bracket
+        # (regional champions advancing), not an actual region - skip it,
+        # or its bogus region value overwrites the real one on upsert.
+        if region_div["id"] == "national":
+            continue
+
         first_round = region_div.select_one(".round")
         if first_round is None:
             continue
