@@ -1,5 +1,7 @@
 # March Madness Prediction
 
+Readme created using Claude Code to ensure completeness
+
 An attempt at predicting future NCAA March Madness tournament outcomes from historical data. Team, conference, and game data is scraped from [sports-reference.com](https://www.sports-reference.com/cbb/) into a local SQLite database, spanning multiple past seasons, so a prediction model can eventually be trained on several years of history and backtested against real tournament outcomes.
 
 The project is in active development. The scraping pipeline (this README's focus) is functional; the prediction model itself hasn't been started yet.

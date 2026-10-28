@@ -3,7 +3,7 @@ import traceback
 
 from scripts.checkpoint import is_done, mark_done
 from scripts.scrape_games import build_games_for_season, build_team_game_stats_for_season
-from scripts.scrape_tournament import scrape_and_save_tournament_seeds
+from scripts.scrape_tournament import assign_tournament_rounds, scrape_and_save_tournament_seeds
 from config import DB_FILE
 
 JOB_NAME = "results"
@@ -12,6 +12,7 @@ STEPS = {
     "games": build_games_for_season,
     "team_game_stats": build_team_game_stats_for_season,
     "tournament_seeds": scrape_and_save_tournament_seeds,
+    "tournament_rounds": assign_tournament_rounds,
 }
 
 
@@ -46,7 +47,7 @@ def run(start_season, end_season, db_file=DB_FILE, force=False, steps=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Backfill games, team_game_stats, and tournament_seeds across a season range. "
+        description="Backfill games, team_game_stats, tournament_seeds, and tournament_rounds across a season range. "
         "Requires update_roster.py to have already populated that season's teams/team_seasons/team_conferences. "
         "team_game_stats is expensive (one request per game) and checkpoints per-game internally, "
         "so an interrupted run resumes without refetching completed games."

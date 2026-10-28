@@ -13,7 +13,7 @@ This project uses `uv` for dependency management (Python 3.14, see `.python-vers
 - Install/sync dependencies: `uv sync`
 - Initialize (or reset) the database schema: `uv run python -m scripts.init_db` — **destructive**, wipes and rebuilds `database/march_madness.db` from scratch. Only run for first-time setup or after a schema change in `create_database.py`.
 - Backfill the roster tier for a season range: `uv run python -m scripts.update_roster --start-season 2020 --end-season 2025`
-- Backfill the results tier for a season range (must run after the roster tier for those seasons): `uv run python -m scripts.update_results --start-season 2020 --end-season 2025`. Restrict to one step with `--steps games`, `--steps team_game_stats`, or `--steps tournament_seeds`. `team_game_stats` is the expensive one — one HTTP request per individual game.
+- Backfill the results tier for a season range (must run after the roster tier for those seasons): `uv run python -m scripts.update_results --start-season 2020 --end-season 2025`. Restrict to one step with `--steps games`, `--steps team_game_stats`, `--steps tournament_seeds`, or `--steps tournament_rounds`. `team_game_stats` is the expensive one — one HTTP request per individual game.
 
 There is no test suite, linter, or formatter configured yet (no pytest/ruff/black config in `pyproject.toml`).
 
@@ -29,7 +29,7 @@ There is no monolithic "run everything" entry point. Data is scraped by cadence 
 
 - **`scripts/init_db.py`** — the *only* script that deletes/recreates the schema. Every other script only inserts/upserts, so rerunning them is always safe.
 - **`scripts/update_roster.py --start-season Y --end-season Y`** — the "once per season" tier: `teams`, `team_seasons`, `conferences`/`team_conferences`. Loops seasons, calling the scrapers in `scripts/get_schools_list.py`, `scripts/scrape_team_stats.py`, and `scripts/scrape_conferences.py`.
-- **`scripts/update_results.py --start-season Y --end-season Y [--steps ...]`** — the "once after the season ends" tier: three independently-runnable steps — `games` (`scrape_games.build_games_for_season`), `team_game_stats` (`scrape_games.build_team_game_stats_for_season`), `tournament_seeds` (`scrape_tournament.scrape_and_save_tournament_seeds`). Backfilled through 2023-2025 as of this writing.
+- **`scripts/update_results.py --start-season Y --end-season Y [--steps ...]`** — the "once after the season ends" tier: four steps, run in this order — `games` (`scrape_games.build_games_for_season`), `team_game_stats` (`scrape_games.build_team_game_stats_for_season`), `tournament_seeds` (`scrape_tournament.scrape_and_save_tournament_seeds`, which also fills First Four losers' seeds from the `games` table), `tournament_rounds` (`scrape_tournament.assign_tournament_rounds`, no HTTP — labels tournament games' `round`/`region` from dates and seeds, so it needs `games` and `tournament_seeds` done first). Backfilled through 2023-2025 as of this writing.
 - A future "frequent" tier will cover `rankings` (updates weekly during the season) and eventually `injuries` once a data source is picked (sports-reference doesn't track injuries).
 
 Each tier script uses `scripts/checkpoint.py` (`is_done`/`mark_done`, backed by JSON files under `state/`) keyed by `"{season}:{step}"`, so re-running a tier script skips work already completed. Pass `--force` to redo anyway.
@@ -48,9 +48,9 @@ Schema (defined in `scripts/create_database.py`), 13 tables:
 - **`conferences`**: `conference_id`, `name`, `slug`.
 - **`team_conferences`**: team↔conference membership per season (`UNIQUE(team_id, season)`) — conference realignment means this must be season-scoped, not a column on `teams`.
 - **`coaches`**, **`players`**, **`player_seasons`**, **`injuries`**: schema exists, no scrapers built yet.
-- **`games`**: one row per physical game, keyed on `boxscore_slug` (`UNIQUE`). `round`/`region` columns exist but are never populated by `scrape_games.py` — region info currently only lives in `tournament_seeds`.
+- **`games`**: one row per physical game, keyed on `boxscore_slug` (`UNIQUE`). `round`/`region` are filled only for tournament games, by the `tournament_rounds` step (`First Four`, `Round of 64`, ..., `Championship`; `region` is NULL for Final Four/Championship).
 - **`team_game_stats`**: one row per team per game (`UNIQUE(game_id, team_id)`), full box-score totals sourced from the individual box-score page.
-- **`tournament_seeds`**: `seed`/`region` populated by `scripts/scrape_tournament.py`; `overall_seed` column exists but is never set by that scraper (always `NULL`).
+- **`tournament_seeds`**: `seed`/`region` populated by `scripts/scrape_tournament.py` for all 68 teams (the bracket page only lists First Four winners, so losers get their opponent's seed/region from the `games` table); `overall_seed` column exists but is never set by that scraper (always `NULL`).
 - **`rankings`**, **`seasons`**: schema exists, no scraper built yet.
 
 ### Scraping conventions (`scripts/`)
